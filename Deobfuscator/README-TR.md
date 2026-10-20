@@ -1,0 +1,123 @@
+# Lua Deobfuscator — Sürükle & Bırak
+
+Bu klasördeki 11 deobfuscator'ı tek bir `.bat` üzerinden kullanmanızı sağlar.
+Bir `.lua` / `.luau` / `.txt` dosyasını **Deobfuscate.bat** üzerine sürükleyip
+bırakın: dosyanın hangi obfuscator ile korunduğu otomatik tespit edilir ve
+doğru araç çalıştırılır.
+
+## Hızlı başlangıç
+
+1. **Bir kez:** `Kurulum.bat` dosyasına çift tıklayın.
+   Gerekli bileşenleri kontrol eder, C# araçlarını derler ve durum raporu verir.
+2. Sonrasında: deobfuscate etmek istediğiniz `.lua` dosyasını
+   **`Deobfuscate.bat`** üzerine sürükleyip bırakın.
+   (Dosyayı **`HepsiniDene.bat`** üzerine bırakırsanız tüm araçlar sırayla
+   denenir ve her aracın çıktısı ayrı dosyaya yazılır.)
+3. Sonuç, girdi dosyasının yanında `<dosyaadı>.deob.lua` olarak oluşur.
+
+Birden fazla dosyayı aynı anda sürükleyebilirsiniz. Bir **klasör** de
+sürükleyebilirsiniz (içindeki `.lua/.luau/.txt` dosyaları işlenir).
+
+> `.bat` üzerine çift tıklarsanız dosya yolunu elle yazmanızı ister.
+
+### Komut satırından
+
+```cmd
+Deobfuscate.bat C:\scripts\obf.lua
+Deobfuscate.bat C:\scripts\obf.lua --tool hercules
+Deobfuscate.bat C:\scripts --all --outdir C:\out
+Deobfuscate.bat --doctor
+Deobfuscate.bat --list
+```
+
+Doğrudan Node ile de çağırabilirsiniz:
+
+```cmd
+node tools\deob.js C:\scripts\obf.lua
+```
+
+## Seçenekler
+
+| Seçenek | Açıklama |
+|---|---|
+| `--all` | Tüm araçları sırayla dener, her çıktıyı ayrı dosyaya yazar (`ad.deob.<araç>.lua`) — kısayol: `HepsiniDene.bat` |
+| `--tool <id>` | Yalnızca belirtilen aracı çalıştırır (id'ler: `--list`) |
+| `--outdir <klasör>` | Çıktı klasörünü değiştirir |
+| `--keep-luac` | Ara `.luac` dosyalarını silmez |
+| `--list` | Araçları ve hazır/yok durumlarını listeler |
+| `--doctor` | Bağımlılık ve araç durumu raporu |
+| `--help` | Yardım |
+
+## Hangi dosya hangi araca gider?
+
+| Obfuscator | Tespit imzası | Araç | Çıktı |
+|---|---|---|---|
+| Hercules | `Obfuscated by Hercules` | `hercules` (Python, statik) | `.lua` |
+| Luraph v15 | `protected using Luraph`, `LPH_*` | `luraph` (Node + Python) | `.lua` |
+| Prometheus | `Prometheus` / klasik `return(function(...)local X={"\055..."` | `prometheus` (Node) | `.lua` |
+| Clyde | `clydeprotection` | `clyde` (Node) | `.lua` |
+| LuaObfuscator | `luaobfuscator` | `luaobf` (Node) | `.lua` |
+| Ironveil V1 | `Obfuscated using ironveil` | `ironveil` (Node) | `.lua` |
+| MoonSec V3 | `moonsec` | `moonsec` (C# → `.luac` → decompile) | `.lua` |
+| 77fuscator | `77fuscator`, `77FUS` | `f77` (C# → `.luac` → decompile) | `.lua` |
+| IronBrew2 / IB2 | `IronBrew`, `IB2` | `ib2` (C# → `.luac` → decompile) | `.lua` |
+| Moonveil | `moonveil` | `moonveil` (Python, statik/kısmi) | `.lua` |
+| Luarmor | `luarmor` | — (loader; payload devirtualize edilemez) | uyarı |
+| Prometheus (alternatif) | — | `promdeobf` (deneysel, `npm i luau-web`) | `.lua` |
+
+İmza bulunamazsa hızlı ve kendi kendine tespit yapan araçlar sırayla denenir
+(`prometheus → clyde → luaobf → ironveil → hercules → moonsec → f77 → ib2`).
+Hiçbiri tutmazsa `--all` ile tüm araçları deneyebilirsiniz.
+
+## Gereksinimler
+
+| Bileşen | Ne için | Nereden |
+|---|---|---|
+| **Node.js 18+** | Zorunlu (dağıtıcı + 6 araç) | https://nodejs.org |
+| **Python 3.10+** | Hercules, Luraph, Moonveil | https://python.org |
+| **.NET 9 SDK** | MoonSec aracının derlenmesi + IB2 runtime | https://dotnet.microsoft.com/download |
+| **.NET 8 runtime** | 77fuscator (paketteki hazır exe) | https://dotnet.microsoft.com/download |
+| **luau** (opsiyonel) | Moonveil | PATH'e eklenmeli |
+
+`Kurulum.bat` bunları kontrol eder, eksikse nereden indireceğinizi söyler.
+
+## Çıktılar
+
+- `obf.lua` → `obf.deob.lua`
+- `--all` modunda: `obf.deob.prometheus.lua`, `obf.deob.hercules.lua`, …
+- Bytecode üreten araçlarda (MoonSec, 77fuscator, IB2) `.luac` çıktısı,
+  paketteki Lua 5.1 decompiler (`decom.lua`) ile `.lua` kaynağına çevrilir.
+  Decompiler başarısız olursa `.luac` dosyası korunur.
+
+## Sık karşılaşılan sorunlar
+
+| Belirti | Çözüm |
+|---|---|
+| `Node.js bulunamadi` | Node.js 18+ kurun, terminali yeniden açın |
+| `moonsec ... atlandı (Kurulum.bat)` | `Kurulum.bat` çalıştırın; .NET 9 SDK gerekir |
+| `f77 ... deobfuscator.exe bulunamadı` | `Kurulum.bat` (dotnet build) veya .NET 8 runtime kurun |
+| `Luraph` çok yavaş / zaman aşımı | Luraph sandbox'ta çalıştırır; büyük dosyalarda uzun sürer, `--tool luraph` ile tek başına deneyin |
+| `[!] Bu dosya mevcut araçlarla çözülemedi` | Bilinmeyen obfuscator olabilir; `--all` deneyin, yoksa dosya çok yeni bir sürümle korunmuştur |
+| Boş/yarım çıktı | Araç sürümü dosyanın obfuscator sürümünü desteklemiyor olabilir |
+
+## Bilinen düzeltmeler
+
+- **Prometheus** aracının yayınlanan kopyasında `src/lua/format.js` içinde
+  kullanılan `UNPRINTABLE_POINTS` sabiti tanımsızdı (araç "UNPRINTABLE_POINTS
+  is not defined" hatası veriyordu). `tools/deob.js` bu sabiti eksikse otomatik
+  ekler; arşivi yeniden açsanız bile düzeltme kendini yeniden uygular.
+- **MoonSec / 77fuscator / IB2** bytecode üretir; paketteki `decom.lua`
+  (Lua 5.1 decompiler) ile `.lua` kaynağına çevrilir.
+
+## Notlar / uyarılar
+
+- **Luraph v15** aracı ve **Moonveil**, statik çözümlemenin yanında scripti
+  izole bir sandbox'ta (Luau) çalıştırır. Güvenmediğiniz dosyalarda bu iki
+  aracı çalıştırmayın; `--tool` ile diğerlerini seçebilirsiniz.
+- Diğer araçların tamamı statiktir, obfuscated kodu çalıştırmaz.
+- Çıktı kalitesi araca göre değişir: 77fuscator/MoonSec/IB2 zincirinde
+  decompiler basit olduğu için kod okunabilir ama birebir orijinal değildir;
+  en iyi sonuç için `.luac` çıktısını `--keep-luac` ile saklayıp
+  [unluac](https://github.com/HansWessels/unluac) gibi bir araçla açabilirsiniz.
+- Bu betikler üçüncü taraf açık kaynak projeleri bir araya getirir; lisansları
+  ilgili alt klasörlerdeki `LICENSE` dosyalarındadır.

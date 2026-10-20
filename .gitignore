@@ -1,3 +1,8 @@
+# ---- kullanıcı örnekleri / çıktıları ----
+Deobfuscator/_samples/
+Deobfuscator/**/*.deob.lua
+Deobfuscator/**/.deobf.*
+
 # ---- deobfuscator çıktıları ----
 Deobfuscator/**/*.deob.lua
 Deobfuscator/**/*.deob.*.lua

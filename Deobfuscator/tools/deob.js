@@ -22,6 +22,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -98,6 +99,7 @@ function tail(text, lines = 6) {
  */
 const CANONICAL = {
   luraph:     ['Luraph_v15_1_Deobfuscator_Newest', 'v15_tool_attempt_source'],
+  luraph14:   ['Luraph-v14-deobf'],
   prometheus: ['Prometheus-Deobfuscator-main', 'Prometheus-Deobfuscator-main'],
   clyde:      ['ClydeDeobfuscator-main', 'ClydeDeobfuscator-main'],
   luaobf:     ['LuaObfuscator-Deobfuscator-main', 'LuaObfuscator-Deobfuscator-main'],
@@ -114,6 +116,7 @@ const CANONICAL = {
 // Klasörü tanımlayan dosyalar (araç klasörüne göre göreli). İlki yeterli.
 const SIGNATURES = {
   luraph:     ['src/detect.js'],
+  luraph14:   ['obfuscators/luraph_v14_9', 'cli.py'],
   prometheus: ['bin/pdeobf.js'],
   clyde:      ['clyde_static_deob.js'],
   luaobf:     ['deobf.js'],
@@ -218,6 +221,20 @@ function bundledLuau() {
   return null;
 }
 
+/**
+ * Luraph-v14-deobf aracinin luau calistiricisi (bin/luau ya da luau.exe).
+ */
+function luauForV14() {
+  const base = path.join(PATHS.luraph14, 'bin');
+  const name = IS_WIN ? 'luau.exe' : 'luau';
+  const p = path.join(base, name);
+  if (exists(p)) {
+    if (!IS_WIN) { try { fs.chmodSync(p, 0o755); } catch {} }
+    return p;
+  }
+  return null;
+}
+
 function decompilerBin() {
   const candidates = IS_WIN
     ? [path.join(PATHS.moonbot, 'bin', 'lua5.1.exe'), 'lua5.1']
@@ -249,7 +266,8 @@ function decompileLuac(luacPath, outPath) {
 
 const MARKERS = [
   { id: 'hercules', w: 10, rx: [/obfuscated\s+by\s+hercules/i, /hercules-obfuscator/i] },
-  { id: 'luraph',   w: 10, rx: [/protected\s+using\s+luraph/i, /\bLPH_(ENCSTR|ENCFUNC|CRASH)\b/, /lura\.ph/i] },
+  { id: 'luraph',   w: 10, rx: [/protected\s+using\s+luraph\s+obfuscator\s+v?15/i, /\bLPH_(ENCSTR|ENCFUNC|CRASH)\b/] },
+  { id: 'luraph14', w: 10, rx: [/protected\s+using\s+luraph\s+obfuscator\s+v?14(\.\d+)?/i] },
   { id: 'ironveil', w: 10, rx: [/obfuscated\s+using\s+ironveil/i] },
   { id: 'f77',      w: 10, rx: [/77fuscator/i, /77FUS/] },
   { id: 'clyde',    w: 10, rx: [/clydeprotection/i, /clyde\s*protection/i] },
@@ -257,7 +275,7 @@ const MARKERS = [
   { id: 'moonveil', w: 8,  rx: [/moonveil/i] },
   { id: 'luaobf',   w: 8,  rx: [/luaobfuscator/i] },
   { id: 'prometheus', w: 8, rx: [/prometheus/i] },
-  { id: 'ib2',      w: 6,  rx: [/ironbrew/i, /\bIB2\b/] },
+  { id: 'ib2',      w: 6,  rx: [/ironbrew/i, /IronBrew2/i] },
   { id: 'luarmor',  w: 8,  rx: [/luarmor/i] },
 ];
 
@@ -485,6 +503,75 @@ const TOOLS = [
   },
 
   {
+    id: 'luraph14',
+    label: 'Luraph v14.7 / 14.8 / 14.9 (Python)',
+    fallbackOrder: 19,
+    availability() {
+      return !!findPython() && exists(path.join(PATHS.luraph14, 'cli.py')) && !!luauForV14();
+    },
+    requires: 'Python 3.10+ (+ paketteki luau)',
+    unavailableHint: 'Python 3.10+ kurun; luau ikilisi Luraph-v14-deobf/bin içinde',
+    run(ctx) {
+      const py = findPython();
+      if (!py) return { ok: false, message: 'Python bulunamadı' };
+      const src = fs.readFileSync(ctx.source, 'latin1');
+      const header = /luraph\s+obfuscator\s+v?(1[45]\.\d+(\.\d+)?)/i.exec(src.slice(0, 500));
+
+      // Denenecek motorlar: basliktan okunan once, sonra bilinen surumler.
+      const engines = [];
+      if (header) {
+        const v = header[1];
+        if (v.startsWith('14')) engines.push(v);
+      }
+      for (const e of ['14.9', '14.8', '14.7']) if (!engines.includes(e)) engines.push(e);
+
+      // Her motor kendi dosyasina yazar; kazanan sonra tek isme tasinir.
+      const outs = [];
+      let lastMsg = '';
+      for (const engine of engines) {
+        const tag = engine.replace(/\./g, '');
+        const out = path.join(ctx.outDir, `${ctx.base}.deob.luraph14-${tag}.lua`);
+        rm(out);
+        const r = run(py.cmd, py.prefix.concat([
+          path.join(PATHS.luraph14, 'cli.py'), ctx.input,
+          '--engine', engine, '-o', out,
+          '--timeout', '240', '--budget', '45',
+        ]), { cwd: PATHS.luraph14, timeout: tmo(ctx, 900000) });
+        const size = sizeOf(out);
+        if (size > 0) {
+          outs.push({ engine, out, size });
+        } else {
+          lastMsg = tail(r.stderr) || tail(r.stdout) || lastMsg;
+        }
+        // Basliktan gelen surum tuttuysa digerlerini denemeye gerek yok
+        if (size > 0 && header && header[1].startsWith('14')) break;
+      }
+
+      if (!outs.length) return { ok: false, message: lastMsg || 'Luraph v14 motoru sonuç üretemedi' };
+
+      outs.sort((a, b) => b.size - a.size);
+      const best = outs[0];
+      for (const o of outs.slice(1)) rm(o.out);
+      // Tek modda cikti adi sade: <ad>.deob.lua
+      let finalOut = best.out;
+      if (!ctx.all) {
+        finalOut = path.join(ctx.outDir, ctx.base + '.deob.lua');
+        if (path.resolve(best.out) !== path.resolve(finalOut)) {
+          rm(finalOut);
+          try { fs.renameSync(best.out, finalOut); } catch { fs.copyFileSync(best.out, finalOut); }
+        }
+      }
+      let note = 'motor ' + best.engine + ', ' + Math.round(best.size / 1024) + ' KB';
+      try {
+        const text = fs.readFileSync(finalOut, 'latin1');
+        const stub = (text.match(/unresolved Luraph runtime helper/g) || []).length;
+        if (stub) note += `, kısmi: ${stub} çözülemeyen runtime yardımcı (stub)`;
+      } catch {}
+      return { ok: true, output: finalOut, message: note };
+    },
+  },
+
+  {
     id: 'luraph',
     label: 'Luraph v15 (JS + Python backend)',
     fallbackOrder: 20,
@@ -636,7 +723,7 @@ function ensurePrometheusPatch() {
 /* ana akış                                                           */
 /* ------------------------------------------------------------------ */
 
-const FALLBACK_ORDER = ['prometheus', 'clyde', 'luaobf', 'ironveil', 'hercules', 'moonsec', 'f77', 'ib2'];
+const FALLBACK_ORDER = ['prometheus', 'clyde', 'luaobf', 'ironveil', 'hercules', 'moonsec', 'f77', 'ib2', 'luraph14'];
 
 function toolById(id) {
   return TOOLS.find((t) => t.id === id) || null;
@@ -690,7 +777,19 @@ function processFile(file, opts) {
     console.log('  [i] Bilinen imza yok; araçlar sırayla denenecek.');
   }
 
-  const ctx = { input: abs, dir, base, outDir: dir, keepLuac: opts.keepLuac, all: opts.all, timeout: opts.timeout };
+  // Bazi araclar yalnizca .lua/.luau kabul eder; .txt/.lua.txt icin gecici
+  // olarak .lua uzantili bir kopya kullan.
+  let workInput = abs;
+  let tmpInput = null;
+  if (!/\.(lua|luau)$/i.test(abs)) {
+    tmpInput = path.join(os.tmpdir(), 'deob-' + process.pid + '-' + Date.now() + '-' + base + '.lua');
+    try { fs.copyFileSync(abs, tmpInput); workInput = tmpInput; } catch { tmpInput = null; }
+  }
+
+  const ctx = {
+    input: workInput, source: abs, dir, base, outDir: dir,
+    keepLuac: opts.keepLuac, all: opts.all, timeout: opts.timeout,
+  };
   let ok = 0;
   let fail = 0;
 
@@ -728,6 +827,7 @@ function processFile(file, opts) {
     }
   }
 
+  if (tmpInput) rm(tmpInput);
   if (ok === 0) {
     console.log('  [!] Bu dosya mevcut araçlarla çözülemedi.');
     console.log('      Dosya bilinmeyen bir obfuscator ile korunmuş olabilir ya da');
@@ -748,6 +848,7 @@ function doctor() {
   console.log(pad('Python', 12) + ': ' + (py ? (py.cmd + ' ' + py.prefix.join(' ')).trim() : 'BULUNAMADI'));
   console.log(pad('lua5.1', 12) + ': ' + (decompilerBin() || 'BULUNAMADI (bytecode -> kaynak dönüşümü yok)'));
   console.log(pad('luau', 12) + ': ' + (bundledLuau() || 'BULUNAMADI (Moonveil/Luraph sandbox çalışmaz)'));
+  console.log(pad('luau (v14)', 12) + ': ' + (luauForV14() || 'BULUNAMADI (Luraph v14 motoru çalışmaz)'));
   const dotnet = run('dotnet', ['--version'], { timeout: 20000 });
   console.log(pad('dotnet', 12) + ': ' + (!dotnet.error && dotnet.status === 0 ? dotnet.stdout.trim() : 'BULUNAMADI'));
   console.log('');

@@ -6247,6 +6247,11 @@ function exprOf(p)
 end
 
 local renderBlock
+-- Deeply nested closures in a traced script can recurse resolve/renderBlock
+-- hundreds of levels deep, which blows the Luau call-stack limit ("stack
+-- overflow" inside renderBlock). Cap the nesting and emit a placeholder.
+local DEPTH = 0
+local MAX_FUNC_DEPTH = 80
 
 function resolve(text, ind)
         for _ = 1, 10 do
@@ -6261,6 +6266,9 @@ function resolve(text, ind)
         local src = text
         text = R.gsub(text, "()\3(%d+)\4", function(pos, fid)
                 local rec = FREC[R.tonumber(fid)]
+                if DEPTH >= MAX_FUNC_DEPTH then
+                        return "function(...) --[[ deob: nesting limit ]] end"
+                end
                 -- a function inside a multi-line table sits deeper than the statement
                 local k = 0
                 local ls = 1
@@ -6276,8 +6284,10 @@ function resolve(text, ind)
                         local a, b = {}, {}
                         local was = CHAIN.markers
                         CHAIN.markers = false
+                        DEPTH += 1
                         renderBlock(rec.block, ind + k + 1, a)
                         renderBlock(rec.alt, ind + k + 1, b)
+                        DEPTH -= 1
                         CHAIN.markers = was
                         local pad = R.rep("\t", ind + k + 1)
                         local function starts(t, i) -- a statement starts on line i (or the block ends)
@@ -6321,7 +6331,9 @@ function resolve(text, ind)
                         end
                         for i = #a - s + 1, #a do R.insert(lines, a[i]) end
                 else
+                        DEPTH += 1
                         renderBlock(rec.block, ind + k + 1, lines)
+                        DEPTH -= 1
                 end
                 R.insert(lines, R.rep("\t", ind + k) .. "end")
                 return R.concat(lines, "\n")

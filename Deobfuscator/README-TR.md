@@ -97,7 +97,8 @@ node tools\deob.js C:\scripts\obf.lua
 | Obfuscator | Tespit imzası | Araç | Çıktı |
 |---|---|---|---|
 | Hercules | `Obfuscated by Hercules` | `hercules` (Python, statik) | `.lua` |
-| Luraph v15 | `protected using Luraph`, `LPH_*` | `luraph` (Node + Python) | `.lua` |
+| Luraph v15 | `protected using Luraph Obfuscator v15`, `LPH_*` | `luraph` (Node + Python) | `.lua` |
+| Luraph v14.7 / 14.8 / 14.9 | `... Luraph Obfuscator v14.x` | `luraph14` (Python motoru) | `.lua` |
 | Prometheus | `Prometheus` / klasik `return(function(...)local X={"\055..."` | `prometheus` (Node) | `.lua` |
 | Clyde | `clydeprotection` | `clyde` (Node) | `.lua` |
 | LuaObfuscator | `luaobfuscator` | `luaobf` (Node) | `.lua` |
@@ -113,6 +114,21 @@ node tools\deob.js C:\scripts\obf.lua
 (`prometheus → clyde → luaobf → ironveil → hercules → moonsec → f77 → ib2`).
 Hiçbiri tutmazsa `--all` ile tüm araçları deneyebilirsiniz.
 
+## Luraph v14 dosyaları
+
+Luraph v14.7 / 14.8 / 14.9 ile korunmuş scriptler ayrı bir motorla çözülür
+(`Luraph-v14-deobf/`, Python). Dağıtıcı sürümü başlıktan okur ve uygun motoru
+seçer (`--engine 14.9` gibi); başlık yoksa 14.9 → 14.8 → 14.7 sırayla denenir
+ve en büyük çıktı veren sonuç kullanılır.
+
+- İç script `loadstring` ile çalıştırılıyorsa motor bu yükü **yakalar** ve
+  doğrudan deobfuscate edilmiş kaynağı verir (ör. 2.5 MB'lık bir hub scripti).
+- Devirtualize edilebilen build'lerde VM kaldırılmış, okunabilir Luau üretilir.
+  Tam çözülemeyen runtime yardımcıları `luraph_runtimeN` stub'ı olarak kalır;
+  bu durumda araç çıktı mesajında "kısmi: N stub" uyarısı verir.
+- Motor Python 3.10+ ve `Luraph-v14-deobf/bin` içindeki `luau`/`luau.exe`
+  ikilisine ihtiyaç duyar (pakette hazır).
+
 ## Gereksinimler
 
 | Bileşen | Ne için | Nereden |
@@ -122,6 +138,7 @@ Hiçbiri tutmazsa `--all` ile tüm araçları deneyebilirsiniz.
 | **.NET 9 SDK** | MoonSec aracının derlenmesi + IB2 runtime | https://dotnet.microsoft.com/download |
 | **.NET 8 runtime** | 77fuscator (paketteki hazır exe) | https://dotnet.microsoft.com/download |
 | **luau** (opsiyonel) | Moonveil | PATH'e eklenmeli |
+| **Luraph v14 motoru** | v14.7/14.8/14.9 dosyaları | `Luraph-v14-deobf/` (Python + hazır luau) |
 
 `Kurulum.bat` bunları tek tek kontrol eder; eksik olanı **winget ile
 kurmayı önerir** (`E` derseniz kurar), olmazsa indirme adresini verir.

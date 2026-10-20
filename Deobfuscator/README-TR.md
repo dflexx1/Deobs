@@ -32,12 +32,27 @@ kopyalanmaz; araçlar güncellenirse `deob.js`'e dokunmak gerekmez.
 Klasör adları değişse/taşınsa bile araçlar **imza dosyasından** bulunur
 (`bin/pdeobf.js`, `deobfhercules.py`, `decom.lua`, …).
 
+## Depoda hazır gelenler
+
+Araç klasörlerinin tamamı artık depoda (açılmış hâlde). Klonladıktan sonra
+`Deobfuscator.rar` çıkarmak gerekmez:
+
+- 11 aracın kaynak kodu (`Prometheus`, `Luraph v15`, `Clyde`, `LuaObfuscator`,
+  `Ironveil`, `Hercules`, `Moonsec`, `77fuscator`, `IB2`, `Moonveil`, `promdeobf`)
+- Hazır çalıştırılabilirler: `77fuscator/.../deobfuscator.exe`, `bin/luau(.exe)`,
+  `bin/lua5.1(.exe)` (decompiler), `LuaAnalysis.Ironbrew2.exe`
+- `tools/deob.js` (dağıtıcı) ve 3 `.bat`
+
+Sadece **Node.js** zorunlu; Python ve .NET ilgili araçlar için gerekir.
+Sırlar depoya alınmadı: `ib2bot-main/.env` içindeki Discord token'ı
+temizlendi ve `.env` artık `.gitignore`'da.
+
 ## Hızlı başlangıç
 
 1. **Bir kez:** `Kurulum.bat` dosyasına çift tıklayın.
-   Araç klasörleri yoksa `Deobfuscator.rar`'ı (WinRAR/7-Zip varsa) otomatik
-   çıkarır, gerekli bileşenleri kontrol eder, C# araçlarını derler ve durum
-   raporu verir.
+   Araç klasörlerini kontrol eder (depoda hazır), eksik bileşenleri (Node,
+   Python, .NET SDK) tespit edip gerekiyorsa winget ile kurar, C# araçlarını
+   derler ve durum raporu verir.
 2. Sonrasında: deobfuscate etmek istediğiniz `.lua` dosyasını
    **`Deobfuscate.bat`** üzerine sürükleyip bırakın.
    (Dosyayı **`HepsiniDene.bat`** üzerine bırakırsanız tüm araçlar sırayla
@@ -150,6 +165,14 @@ Ekran görüntüsündeki iki tipik durum:
   ekler; arşivi yeniden açsanız bile düzeltme kendini yeniden uygular.
 - **MoonSec / 77fuscator / IB2** bytecode üretir; paketteki `decom.lua`
   (Lua 5.1 decompiler) ile `.lua` kaynağına çevrilir.
+
+## Windows'ta ilk çalıştırma sırası
+
+1. Depoyu klonla / ZIP olarak indir (araçlar içinde hazır).
+2. `Deobfuscator\Kurulum.bat` → `[1/6]` Node yoksa `E` ile kur, `[3/6]` .NET
+   SDK yoksa `E` ile kur. Sonda **"Her sey hazir"** yazmalı.
+3. Pencereyi kapat-aç (PATH güncellensin).
+4. `.lua` dosyasını `Deobfuscate.bat` üzerine bırak.
 
 ## Notlar / uyarılar
 

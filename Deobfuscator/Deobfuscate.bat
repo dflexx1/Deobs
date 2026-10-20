@@ -5,14 +5,7 @@ title Lua Deobfuscator
 cd /d "%~dp0"
 
 where node >nul 2>nul
-if errorlevel 1 (
-  echo.
-  echo [X] Node.js bulunamadi.
-  echo     https://nodejs.org adresinden Node.js 18+ kurun, sonra tekrar deneyin.
-  echo.
-  pause
-  exit /b 1
-)
+if errorlevel 1 goto :nonode
 
 if "%~1"=="" goto :ask
 
@@ -30,6 +23,30 @@ set /p "TARGET=Dosya yolu (bos birakip Enter = cikis): "
 if not defined TARGET exit /b 0
 node "%~dp0tools\deob.js" "%TARGET%"
 set "RC=%ERRORLEVEL%"
+goto :finish
+
+:nonode
+echo.
+echo ==========================================================
+echo   Node.js bulunamadi - deobfuscator'lar calisamaz.
+echo ==========================================================
+echo.
+echo   Bu araclar Node.js 18+ gerektirir ^(zorunlu^).
+echo   Kurmak icin:  https://nodejs.org  -^> "LTS" surumu
+echo   veya:         winget install OpenJS.NodeJS.LTS
+echo.
+echo   Kurulum.bat bu kontrolu ve diger eksikleri yapar.
+echo.
+set "ANS="
+set /p "ANS=   Kurulum.bat simdi calistirilsin mi? (E/H): "
+if /i "%ANS%"=="E" (
+  call "%~dp0Kurulum.bat"
+)
+echo.
+echo   Kurulumdan sonra bu pencereyi KAPATIP yeniden acin.
+echo.
+pause
+exit /b 1
 
 :finish
 echo.

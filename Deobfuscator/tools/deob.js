@@ -56,13 +56,17 @@ function pad(s, n) {
 }
 
 function run(cmd, args, opts = {}) {
+  // .NET 8 hedefli exe'ler .NET 9 calisma zamaniyla da acilsin
+  const dotnetish = /(^|[\\/])dotnet(\.exe)?$/i.test(cmd) || /\.exe$/i.test(cmd);
+  const env = Object.assign({}, process.env, opts.env || {});
+  if (dotnetish && !env.DOTNET_ROLL_FORWARD) env.DOTNET_ROLL_FORWARD = 'LatestMajor';
   const res = spawnSync(cmd, args, {
     cwd: opts.cwd || ROOT,
     encoding: 'buffer',
     timeout: opts.timeout || 180000,
     windowsHide: true,
     maxBuffer: 64 * 1024 * 1024,
-    env: Object.assign({}, process.env, opts.env || {}),
+    env,
   });
   return {
     status: res.status,
@@ -109,10 +113,10 @@ const CANONICAL = {
 
 // Klasörü tanımlayan dosyalar (araç klasörüne göre göreli). İlki yeterli.
 const SIGNATURES = {
-  luraph:     ['deob.js', 'src/detect.js'],
+  luraph:     ['src/detect.js'],
   prometheus: ['bin/pdeobf.js'],
   clyde:      ['clyde_static_deob.js'],
-  luaobf:     ['deobf.js', 'index.js'],
+  luaobf:     ['deobf.js'],
   ironveil:   ['deobfuscator/index.js'],
   hercules:   ['deobfhercules.py'],
   moonsec:    ['MoonsecDeobfuscator.csproj'],
@@ -126,7 +130,7 @@ const SIGNATURES = {
 const PATHS = {};
 for (const [id, parts] of Object.entries(CANONICAL)) PATHS[id] = path.join(ROOT, ...parts);
 
-const SKIP_DIRS = new Set(['node_modules', '.git', 'bin', 'obj', '__pycache__', 'output', 'dist', '.vscode']);
+const SKIP_DIRS = new Set(['node_modules', '.git', 'bin', 'obj', '__pycache__', 'output', 'dist', '.vscode', 'tools']);
 
 /**
  * Belirtilen imza dosyalarını içeren klasörü ara (en fazla `maxDepth` seviye).
@@ -757,7 +761,7 @@ function main(argv) {
   ensurePrometheusPatch();
 
   const missing = resolvePaths();
-  if (missing.length === Object.keys(CANONICAL).length) {
+  if (missing.length >= 8) {
     console.log('');
     console.log('[X] Araç klasörleri bulunamadı.');
     console.log('    Bu betik, Deobfuscator.rar içindeki 11 aracı çağırır; araçlar');

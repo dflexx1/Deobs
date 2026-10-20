@@ -108,7 +108,18 @@ Hiçbiri tutmazsa `--all` ile tüm araçları deneyebilirsiniz.
 | **.NET 8 runtime** | 77fuscator (paketteki hazır exe) | https://dotnet.microsoft.com/download |
 | **luau** (opsiyonel) | Moonveil | PATH'e eklenmeli |
 
-`Kurulum.bat` bunları kontrol eder, eksikse nereden indireceğinizi söyler.
+`Kurulum.bat` bunları tek tek kontrol eder; eksik olanı **winget ile
+kurmayı önerir** (`E` derseniz kurar), olmazsa indirme adresini verir.
+Kurulum sonunda "EKSIK BILESENLER: ..." satırı neyin eksik kaldığını söyler.
+
+Ekran görüntüsündeki iki tipik durum:
+
+| Ekranda görünen | Anlamı | Çözüm |
+|---|---|---|
+| `'node' is not recognized...` | Node.js yok (6 JS aracı + dağıtıcı çalışmaz) | `Kurulum.bat` → E, veya https://nodejs.org LTS |
+| `No .NET SDKs were found` | `.NET runtime` var ama **SDK** yok → Moonsec derlenemez | `Kurulum.bat` → E (SDK 9) veya https://dotnet.microsoft.com/download/dotnet/9.0 |
+| `.NET SDK 8 yok` uyarısı | 77fuscator/IB2 net8 hedefli | Gerekmez: araçlar `DOTNET_ROLL_FORWARD` ile .NET 9 üzerinde de çalışır |
+| `MoonsecDeobfuscator kaynagi bulunamadi` | Araç klasörleri çıkarılmamış | `Deobfuscator.rar`'ı bu klasöre çıkarın (Kurulum otomatik de dener) |
 
 ## Çıktılar
 
@@ -124,6 +135,7 @@ Hiçbiri tutmazsa `--all` ile tüm araçları deneyebilirsiniz.
 |---|---|
 | `Node.js bulunamadi` | Node.js 18+ kurun, terminali yeniden açın |
 | `[X] Araç klasörleri bulunamadı` | `Deobfuscator.rar` çıkarılmamış. `Kurulum.bat` çalıştırın veya arşivi bu klasöre çıkarın |
+| `[X] Su klasorler hala yok: ...` | Kurulum ekranında hangi araç klasörünün eksik olduğunu listeler | Arşivi belirtilen klasöre çıkarıp `Kurulum.bat`'ı tekrar çalıştırın |
 | `moonsec ... atlandı (Kurulum.bat)` | `Kurulum.bat` çalıştırın; .NET 9 SDK gerekir |
 | `f77 ... deobfuscator.exe bulunamadı` | `Kurulum.bat` (dotnet build) veya .NET 8 runtime kurun |
 | `Luraph` çok yavaş / zaman aşımı | Luraph sandbox'ta çalıştırır; büyük dosyalarda uzun sürer, `--tool luraph` ile tek başına deneyin |

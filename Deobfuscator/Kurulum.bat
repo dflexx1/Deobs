@@ -5,8 +5,55 @@ title Lua Deobfuscator - Kurulum
 cd /d "%~dp0"
 
 echo ==========================================================
-echo   Lua Deobfuscator - bagimlilik kontrolu / kurulum
+echo   Lua Deobfuscator - kurulum / bagimlilik kontrolu
 echo ==========================================================
+echo.
+
+echo [0/5] Arac klasorleri kontrolu ...
+if exist "ClydeDeobfuscator-main" goto :toolspresent
+if exist "tools\deob.js" if exist "hercules-deobfuscator-main" goto :toolspresent
+
+echo    Arac klasorleri yok; arsiv araniyor ...
+set "ARCHIVE="
+if exist "%~dp0Deobfuscator.rar"    set "ARCHIVE=%~dp0Deobfuscator.rar"
+if not defined ARCHIVE if exist "%~dp0..\Deobfuscator.rar" set "ARCHIVE=%~dp0..\Deobfuscator.rar"
+
+if not defined ARCHIVE (
+  echo    [!] Deobfuscator.rar bulunamadi.
+  echo        Arsivi bu klasore^(.^) cikarip Kurulum.bat'i tekrar calistirin.
+  goto :toolspresent
+)
+
+echo    Arsiv: %ARCHIVE%
+set "UNPACK="
+if exist "%ProgramFiles%\WinRAR\UnRAR.exe"     set "UNPACK=%ProgramFiles%\WinRAR\UnRAR.exe"
+if not defined UNPACK if exist "%ProgramFiles%\7-Zip\7z.exe"        set "UNPACK=%ProgramFiles%\7-Zip\7z.exe"
+if not defined UNPACK if exist "%ProgramFiles(x86)%\7-Zip\7z.exe"   set "UNPACK=%ProgramFiles(x86)%\7-Zip\7z.exe"
+if not defined UNPACK if exist "%ProgramFiles%\WinRAR\WinRAR.exe"   set "UNPACK=%ProgramFiles%\WinRAR\WinRAR.exe"
+
+if not defined UNPACK (
+  echo    [!] WinRAR / 7-Zip bulunamadi.
+  echo        Arsivi sag tik -^> "Buraya cikar" ile bu klasore cikarin.
+  goto :toolspresent
+)
+
+echo    Cikariliyor ... ^(buyuk arsiv, biraz surebilir^)
+"%UNPACK%" x -o+ -y "%ARCHIVE%" "%~dp0." >nul 2>nul
+if not errorlevel 1 goto :toolsdone
+"%UNPACK%" x -y -o"%~dp0." "%ARCHIVE%" >nul 2>nul
+
+:toolsdone
+if exist "ClydeDeobfuscator-main" (
+  echo    OK   - arac klasorleri cikarildi.
+) else (
+  echo    [!] Cikarma basarisiz. Arsivi elle cikarin ^(WinRAR / 7-Zip^).
+)
+goto :aftertools
+
+:toolspresent
+echo    OK   - arac klasorleri mevcut.
+
+:aftertools
 echo.
 
 echo [1/5] Node.js kontrolu ...

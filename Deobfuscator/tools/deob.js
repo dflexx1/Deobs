@@ -88,20 +88,84 @@ function tail(text, lines = 6) {
 /* araç yolları                                                       */
 /* ------------------------------------------------------------------ */
 
-const PATHS = {
-  luraph:     P('Luraph_v15_1_Deobfuscator_Newest', 'v15_tool_attempt_source'),
-  prometheus: P('Prometheus-Deobfuscator-main', 'Prometheus-Deobfuscator-main'),
-  clyde:      P('ClydeDeobfuscator-main', 'ClydeDeobfuscator-main'),
-  luaobf:     P('LuaObfuscator-Deobfuscator-main', 'LuaObfuscator-Deobfuscator-main'),
-  ironveil:   P('Ironveil-Deobfuscator-V1-main', 'Ironveil-Deobfuscator-V1-main'),
-  hercules:   P('hercules-deobfuscator-main', 'hercules-deobfuscator-main', 'hercules', 'deobfhercules_fixed'),
-  moonsec:    P('MoonsecDeobfuscator-master'),
-  moonbot:    P('MoonSecV3_Deobfuscator_Bot_FULLY-1', 'MoonSecV3DeobfuscatorDiscordBot-main'),
-  ib2:        P('ib2-deobf', 'ib2bot-main', 'ib2deobf'),
-  f77:        P('77fuscatorDeobfuscator-main', '77fuscatorDeobfuscator-main'),
-  moonveil:   P('moonveilvro-main', 'moonveilvro-main'),
-  promdeobf:  P('promdeobf', 'promdeobf'),
+/*
+ * Araç klasörleri. Kanonik adlar arşivdeki adlardır; klasör adı değişmiş
+ * ya da taşınmış olsa bile aşağıdaki "imza dosyası" araması bulur.
+ */
+const CANONICAL = {
+  luraph:     ['Luraph_v15_1_Deobfuscator_Newest', 'v15_tool_attempt_source'],
+  prometheus: ['Prometheus-Deobfuscator-main', 'Prometheus-Deobfuscator-main'],
+  clyde:      ['ClydeDeobfuscator-main', 'ClydeDeobfuscator-main'],
+  luaobf:     ['LuaObfuscator-Deobfuscator-main', 'LuaObfuscator-Deobfuscator-main'],
+  ironveil:   ['Ironveil-Deobfuscator-V1-main', 'Ironveil-Deobfuscator-V1-main'],
+  hercules:   ['hercules-deobfuscator-main', 'hercules-deobfuscator-main', 'hercules', 'deobfhercules_fixed'],
+  moonsec:    ['MoonsecDeobfuscator-master'],
+  moonbot:    ['MoonSecV3_Deobfuscator_Bot_FULLY-1', 'MoonSecV3DeobfuscatorDiscordBot-main'],
+  ib2:        ['ib2-deobf', 'ib2bot-main', 'ib2deobf'],
+  f77:        ['77fuscatorDeobfuscator-main', '77fuscatorDeobfuscator-main'],
+  moonveil:   ['moonveilvro-main', 'moonveilvro-main'],
+  promdeobf:  ['promdeobf', 'promdeobf'],
 };
+
+// Klasörü tanımlayan dosyalar (araç klasörüne göre göreli). İlki yeterli.
+const SIGNATURES = {
+  luraph:     ['deob.js', 'src/detect.js'],
+  prometheus: ['bin/pdeobf.js'],
+  clyde:      ['clyde_static_deob.js'],
+  luaobf:     ['deobf.js', 'index.js'],
+  ironveil:   ['deobfuscator/index.js'],
+  hercules:   ['deobfhercules.py'],
+  moonsec:    ['MoonsecDeobfuscator.csproj'],
+  moonbot:    ['decom.lua'],
+  ib2:        ['LuaAnalysis.Ironbrew2.dll'],
+  f77:        ['deobfuscator.csproj'],
+  moonveil:   ['moonveil_decompile.py'],
+  promdeobf:  ['main.js', '_luau.mjs'],
+};
+
+const PATHS = {};
+for (const [id, parts] of Object.entries(CANONICAL)) PATHS[id] = path.join(ROOT, ...parts);
+
+const SKIP_DIRS = new Set(['node_modules', '.git', 'bin', 'obj', '__pycache__', 'output', 'dist', '.vscode']);
+
+/**
+ * Belirtilen imza dosyalarını içeren klasörü ara (en fazla `maxDepth` seviye).
+ */
+function findDirBySignature(relPaths, maxDepth = 4) {
+  const hits = (dir) => relPaths.some((rel) => exists(path.join(dir, ...rel.split('/'))));
+  const walk = (dir, depth, out) => {
+    if (out.length || depth > maxDepth) return;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    if (hits(dir)) { out.push(dir); return; }
+    for (const e of entries) {
+      if (!e.isDirectory() || SKIP_DIRS.has(e.name)) continue;
+      walk(path.join(dir, e.name), depth + 1, out);
+      if (out.length) return;
+    }
+  };
+  const out = [];
+  walk(ROOT, 0, out);
+  return out[0] || null;
+}
+
+/**
+ * Kanonik yolları doğrular; bulunamayanları imza aramasıyla çözer.
+ * Dönüş: bulunamayan araç id'leri.
+ */
+function resolvePaths() {
+  const missing = [];
+  for (const id of Object.keys(CANONICAL)) {
+    const sig = SIGNATURES[id];
+    const canonicalOk = sig.some((rel) => exists(path.join(PATHS[id], ...rel.split('/'))));
+    if (canonicalOk) continue;
+    const found = findDirBySignature(sig);
+    if (found) { PATHS[id] = found; continue; }
+    missing.push(id);
+  }
+  return missing;
+}
+
 
 /* ------------------------------------------------------------------ */
 /* python bulma                                                       */
@@ -649,6 +713,7 @@ function processFile(file, opts) {
 }
 
 function doctor() {
+  resolvePaths();
   console.log('Araç durumu');
   console.log('-----------');
   const py = findPython();
@@ -690,6 +755,25 @@ function main(argv) {
   if (!inputs.length) { usage(); return 2; }
 
   ensurePrometheusPatch();
+
+  const missing = resolvePaths();
+  if (missing.length === Object.keys(CANONICAL).length) {
+    console.log('');
+    console.log('[X] Araç klasörleri bulunamadı.');
+    console.log('    Bu betik, Deobfuscator.rar içindeki 11 aracı çağırır; araçlar');
+    console.log('    olmadan çalışamaz.');
+    console.log('');
+    console.log('    Yapman gereken:');
+    console.log('      1) Deobfuscator.rar dosyasını bu klasöre çıkar (WinRAR / 7-Zip)');
+    console.log('      2) Kurulum.bat dosyasını bir kez çalıştır');
+    console.log('');
+    return 3;
+  }
+  if (missing.length) {
+    console.log('');
+    console.log('[i] Bulunamayan araç klasörleri: ' + missing.join(', '));
+    console.log('    (Deobfuscator.rar tam çıkarılmamış olabilir; bu araçlar atlanır.)');
+  }
 
   let files = [];
   for (const arg of inputs) {

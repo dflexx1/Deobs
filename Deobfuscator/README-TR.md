@@ -5,10 +5,39 @@ Bir `.lua` / `.luau` / `.txt` dosyasını **Deobfuscate.bat** üzerine sürükle
 bırakın: dosyanın hangi obfuscator ile korunduğu otomatik tespit edilir ve
 doğru araç çalıştırılır.
 
+## Nasıl çalışıyor? (`deob.js` birleştirme değil, **dağıtıcı**)
+
+`tools/deob.js` ~800 satırlık ince bir yönlendiricidir; deobfuscator'ların
+kodu **bu dosyanın içinde değil**. Her araç kendi klasöründe durur ve
+`deob.js` onları `node`/`python`/`exe` olarak **çağırır** (tıpkı elle
+çalıştırıyormuş gibi, ama doğru argümanlarla):
+
+| Araç | Çağrılan gerçek dosya | Kendi kodu |
+|---|---|---|
+| Prometheus | `Prometheus-Deobfuscator-main/bin/pdeobf.js` | ~16.700 satır |
+| Luraph v15 | `Luraph_v15_1_Deobfuscator_Newest/deob.js` + Python `core/*.py` | ~18.400 satır |
+| MoonSec | `MoonsecDeobfuscator-master` (.NET) | ~11.100 satır |
+| promdeobf | `promdeobf/main.js` | ~10.800 satır |
+| LuaObfuscator | `LuaObfuscator-Deobfuscator-main/index.js` | ~7.300 satır |
+| Clyde | `ClydeDeobfuscator-main/cli.js` | ~6.300 satır |
+| Moonveil | `moonveilvro-main/moonveil_decompile.py` | ~5.700 satır |
+| Hercules | `deobfhercules_fixed/deobfhercules.py` | ~5.600 satır |
+| Ironveil | `Ironveil-Deobfuscator-V1-main/deobfuscator/index.js` | ~5.000 satır |
+| 77fuscator / IB2 | hazır `.exe` / `.dll` (C#) | derlenmiş |
+
+Yani `deob.js` sadece şunları yapar: dosyayı okur → imzayı bulur →
+doğru komutu `spawn` eder → çıktıyı toplar. Araç kodunun tek satırı bile
+kopyalanmaz; araçlar güncellenirse `deob.js`'e dokunmak gerekmez.
+
+Klasör adları değişse/taşınsa bile araçlar **imza dosyasından** bulunur
+(`bin/pdeobf.js`, `deobfhercules.py`, `decom.lua`, …).
+
 ## Hızlı başlangıç
 
 1. **Bir kez:** `Kurulum.bat` dosyasına çift tıklayın.
-   Gerekli bileşenleri kontrol eder, C# araçlarını derler ve durum raporu verir.
+   Araç klasörleri yoksa `Deobfuscator.rar`'ı (WinRAR/7-Zip varsa) otomatik
+   çıkarır, gerekli bileşenleri kontrol eder, C# araçlarını derler ve durum
+   raporu verir.
 2. Sonrasında: deobfuscate etmek istediğiniz `.lua` dosyasını
    **`Deobfuscate.bat`** üzerine sürükleyip bırakın.
    (Dosyayı **`HepsiniDene.bat`** üzerine bırakırsanız tüm araçlar sırayla
@@ -94,6 +123,7 @@ Hiçbiri tutmazsa `--all` ile tüm araçları deneyebilirsiniz.
 | Belirti | Çözüm |
 |---|---|
 | `Node.js bulunamadi` | Node.js 18+ kurun, terminali yeniden açın |
+| `[X] Araç klasörleri bulunamadı` | `Deobfuscator.rar` çıkarılmamış. `Kurulum.bat` çalıştırın veya arşivi bu klasöre çıkarın |
 | `moonsec ... atlandı (Kurulum.bat)` | `Kurulum.bat` çalıştırın; .NET 9 SDK gerekir |
 | `f77 ... deobfuscator.exe bulunamadı` | `Kurulum.bat` (dotnet build) veya .NET 8 runtime kurun |
 | `Luraph` çok yavaş / zaman aşımı | Luraph sandbox'ta çalıştırır; büyük dosyalarda uzun sürer, `--tool luraph` ile tek başına deneyin |

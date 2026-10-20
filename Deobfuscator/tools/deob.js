@@ -198,6 +198,26 @@ function findPython() {
 /* gömülü Lua 5.1 derleyici (luac -> lua)                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Pakette hazir gelen Luau CLI (Moonveil / Luraph sandbox icin).
+ */
+function bundledLuau() {
+  const base = path.join(PATHS.luraph, 'bin');
+  const candidates = IS_WIN
+    ? [path.join(base, 'luau.exe'), 'luau.exe', 'luau']
+    : [path.join(base, 'luau'), 'luau'];
+  for (const c of candidates) {
+    if (c.includes(path.sep) || c.includes('/')) {
+      if (!exists(c)) continue;
+      if (!IS_WIN) { try { fs.chmodSync(c, 0o755); } catch {} }
+      return c;
+    }
+    const r = run(c, ['--version'], { timeout: 15000 });
+    if (!r.error && r.status === 0) return c;
+  }
+  return null;
+}
+
 function decompilerBin() {
   const candidates = IS_WIN
     ? [path.join(PATHS.moonbot, 'bin', 'lua5.1.exe'), 'lua5.1']
@@ -487,16 +507,18 @@ const TOOLS = [
     id: 'moonveil',
     label: 'Moonveil (Python, statik/kısmi)',
     fallbackOrder: 21,
-    availability() { return !!findPython() && exists(path.join(PATHS.moonveil, 'moonveil_decompile.py')); },
-    requires: 'Python 3 + luau (PATH)',
-    unavailableHint: 'Python kurun; luau ayrıca PATH\'te olmalı',
+    availability() { return !!findPython() && exists(path.join(PATHS.moonveil, 'moonveil_decompile.py')) && !!bundledLuau(); },
+    requires: 'Python 3 + luau (paketteki bin/luau kullanılır)',
+    unavailableHint: 'Python kurun (luau pakette hazır)',
     run(ctx) {
       const py = findPython();
       const out = outPaths(ctx, 'moonveil', '.lua');
       rm(out);
+      const luau = bundledLuau();
+      const env = luau ? { MOONVEIL_LUAU: luau, LUAU_BIN: luau } : {};
       const r = run(py.cmd, py.prefix.concat([
         path.join(PATHS.moonveil, 'moonveil_decompile.py'), ctx.input, out,
-      ]), { cwd: PATHS.moonveil, timeout: tmo(ctx, 300000) });
+      ]), { cwd: PATHS.moonveil, timeout: tmo(ctx, 300000), env });
       const ok = sizeOf(out) > 0;
       return { ok, output: ok ? out : null, message: ok ? '' : tail(r.stderr) || tail(r.stdout) };
     },
@@ -725,6 +747,7 @@ function doctor() {
   console.log(pad('Node.js', 12) + ': ' + nodeV);
   console.log(pad('Python', 12) + ': ' + (py ? (py.cmd + ' ' + py.prefix.join(' ')).trim() : 'BULUNAMADI'));
   console.log(pad('lua5.1', 12) + ': ' + (decompilerBin() || 'BULUNAMADI (bytecode -> kaynak dönüşümü yok)'));
+  console.log(pad('luau', 12) + ': ' + (bundledLuau() || 'BULUNAMADI (Moonveil/Luraph sandbox çalışmaz)'));
   const dotnet = run('dotnet', ['--version'], { timeout: 20000 });
   console.log(pad('dotnet', 12) + ': ' + (!dotnet.error && dotnet.status === 0 ? dotnet.stdout.trim() : 'BULUNAMADI'));
   console.log('');

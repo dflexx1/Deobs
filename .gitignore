@@ -1,0 +1,28 @@
+# ---- deobfuscator çıktıları ----
+Deobfuscator/**/*.deob.lua
+Deobfuscator/**/*.deob.*.lua
+Deobfuscator/**/*.temp.luac
+Deobfuscator/**/output/
+Deobfuscator/Luraph_v15_1_Deobfuscator_Newest/**/out/
+Deobfuscator/promdeobf/promdeobf/out/
+
+# ---- sırlar ----
+.env
+*.env
+!example.env
+!*.example.env
+
+# ---- bağımlılıklar / derleme artıkları ----
+node_modules/
+__pycache__/
+*.pyc
+.dotnet/
+obj/
+!Deobfuscator/77fuscatorDeobfuscator-main/**/bin/Debug/net8.0/**
+
+# ---- arşiv kopyaları ----
+# Bu 11 arşiv, depoda zaten bulunan Deobfuscator.rar'ın içindekilerle aynı;
+# aynı veriyi ikinci kez tutmamak için izlenmiyor. Araç klasörleri açılmış
+# halde depoda.
+Deobfuscator/*.zip
+Deobfuscator/*.rar
